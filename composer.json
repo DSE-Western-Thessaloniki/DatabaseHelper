@@ -1,0 +1,16 @@
+{
+    "name": "dsewth/database-helper",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Dsewth\\DatabaseHelper\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Theofilos Intzoglou",
+            "email": "int.teo@gmail.com"
+        }
+    ],
+    "require": {}
+}
