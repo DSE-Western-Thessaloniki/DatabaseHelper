@@ -3,11 +3,14 @@
 namespace Dsewth\DatabaseHelper;
 
 use Dsewth\DatabaseHelper\Exceptions\DatabaseException;
+use Monolog\Logger;
+use mysqli;
 use mysqli_stmt;
 
 class Database {
-	private \mysqli $connection = null;
-	private \mysqli_stmt $statement = null;
+	private \mysqli $connection;
+	private \mysqli_stmt $statement;
+	private Logger $logger;
 	
 	/**
 	 * Create a new Database object and connect to the database
@@ -21,11 +24,11 @@ class Database {
 	public static function fromConfig(array $config): Database {
 		$obj = new self();
 		$obj->connection = new \mysqli(
-			$config['host'], 
-			$config['user'], 
-			$config['password'],
-			$config['database'],
-			$config['port']
+			$config['hostname'] ?? null, 
+			$config['username'] ?? null, 
+			$config['password'] ?? null,
+			$config['database'] ?? null,
+			$config['port'] ?? null
 		);
 
 		return $obj;
@@ -45,6 +48,25 @@ class Database {
 	}
 
 	/**
+	 * Set the logger to use for writing log messages. If not set, the default
+	 * is to not log anything.
+	 * @param Logger $logger A monolog logger instance.
+	 * @return void 
+	 */
+	public function setLogger(Logger $logger): void {
+		$this->logger = $logger;
+	}
+
+	/**
+	 * Set a pre-configured connection to the database.
+	 * @param mysqli $connection A mysqli instance.
+	 * @return void 
+	 */
+	public function setConnection(\mysqli $connection): void {
+		$this->connection = $connection;
+	}
+
+	/**
 	 * Return the database connection.
 	 * @return mysqli 
 	 */
@@ -61,9 +83,11 @@ class Database {
 	}
 
 	private function logError(DatabaseException $e) {
-		syslog(LOG_ERR, $e->getMessage());
-		syslog(LOG_ERR, "Trace:");
-		syslog(LOG_ERR, $e->getTraceAsString());
+		if (isset($this->logger)) {
+			$this->logger->error($e->getMessage());
+			$this->logger->error("Trace:");
+			$this->logger->error($e->getTraceAsString());
+		}
 	}
 
 	/**
@@ -86,7 +110,15 @@ class Database {
 	}
 
 	private function fastQueryPriv(string $query) {
-		$result = $this->connection->query($query);
+		if (!isset($this->connection)) {
+			throw new DatabaseException('Database connection not set.');
+		}
+
+		try {
+			$result = $this->connection->query($query);
+		} catch (\mysqli_sql_exception $e) {
+			throw new DatabaseException($e->getMessage(), $e->getCode(), $e);
+		}
 
 		if (false === $result) {
 			throw new DatabaseException(
@@ -119,7 +151,15 @@ class Database {
 	}
 
 	private function queryPriv(string $query, array $params = []) {
-		$result = $this->connection->prepare($query);
+		if (!isset($this->connection)) {
+			throw new DatabaseException('Database connection not set.');
+		}
+
+		try {
+			$result = $this->connection->prepare($query);
+		} catch (\mysqli_sql_exception $e) {
+			throw new DatabaseException($e->getMessage(), $e->getCode(), $e);
+		}
 
 		if (false === $result) {
 			throw new DatabaseException(
@@ -131,7 +171,7 @@ class Database {
 		$this->statement = $result;
 
 		// No need to check for errors as we have already done that in execute
-		$this->execute($params);
+		$this->executePriv($params);
 
 		// We return a statement to achieve chaining
 		return $this->statement;
@@ -166,6 +206,10 @@ class Database {
 	}
 
 	private function executePriv(array $params = []) {
+		if (!isset($this->statement)) {
+			throw new DatabaseException('You must prepare a query first!');
+		}
+
 		if (PHP_VERSION > "8.1") {
 			$result = $this->statement->execute($params);
 		} else { // For older PHP versions
@@ -180,8 +224,11 @@ class Database {
 				}
 			}
 
-			
-			$result = $this->statement->execute();
+			try {
+				$result = $this->statement->execute();
+			} catch (\mysqli_sql_exception $e) {
+				throw new DatabaseException($e->getMessage(), $e->getCode(), $e);
+			}
 		}
 
 		if ($result === false) {
@@ -211,7 +258,12 @@ class Database {
 	}
 
 	private function preparePriv(string $query) {
-		$this->statement = $this->connection->prepare($query);
+		try {
+			$this->statement = $this->connection->prepare($query);
+		} catch (\mysqli_sql_exception $e) {
+			throw new DatabaseException($e->getMessage(), $e->getCode(), $e);
+		}
+
 		if (false === $this->statement) {
 			throw new DatabaseException(
 				"Error preparing query: '$query'. Mysql error: " . $this->connection->error, 
@@ -229,6 +281,10 @@ class Database {
 	 */
 	public function close_statement()
 	{
+		if (!isset($this->statement) || false === $this->statement) {
+			return true;
+		}
+
 		$result = $this->statement->close();
 
 		return $result;
