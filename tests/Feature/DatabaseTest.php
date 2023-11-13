@@ -26,7 +26,7 @@ beforeEach(function() {
 });
 
 it('can create a new database object and connect to a specific database', function () {
-    $db = new Database();
+    $db = Database::getInstance();
     expect($db)->toBeInstanceOf(Database::class);
     $db->setConnection(
         new \mysqli(

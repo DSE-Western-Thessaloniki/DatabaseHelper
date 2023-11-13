@@ -3,15 +3,35 @@
 namespace Dsewth\DatabaseHelper;
 
 use Dsewth\DatabaseHelper\Exceptions\DatabaseException;
+use Monolog\Handler\ErrorLogHandler;
 use Monolog\Logger;
-use mysqli;
-use mysqli_stmt;
 
 class Database {
-	private \mysqli $connection;
-	private \mysqli_stmt $statement;
-	private Logger $logger;
+	private ?\mysqli $connection = null;
+	private ?\mysqli_stmt $statement = null;
+	private ?Logger $logger = null;
+	private static ?Database $instance = null;
 	
+	private final function __construct() {
+		$this->logger = new Logger('database');
+		$this->logger->pushHandler(new ErrorLogHandler());
+	}
+
+	/**
+	 * Get the singleton instance of this class.
+	 * @return Database 
+	 * @throws DatabaseException 
+	 * This method throws an exception when the database is not initialized. Use
+	 * fromConfig or fromConnection to initialize the database.
+	 */
+	public static function getInstance(): Database {
+		if (self::$instance === null) {
+            throw new DatabaseException("Database not initialized");
+        }
+
+        return self::$instance;
+    }
+
 	/**
 	 * Create a new Database object and connect to the database
 	 * using the given config.
@@ -22,8 +42,11 @@ class Database {
 	 * @return Database 
 	 */
 	public static function fromConfig(array $config): Database {
-		$obj = new self();
-		$obj->connection = new \mysqli(
+		if (self::$instance === null) {
+			self::$instance = new self();
+		}
+
+		self::$instance->connection = new \mysqli(
 			$config['hostname'] ?? null, 
 			$config['username'] ?? null, 
 			$config['password'] ?? null,
@@ -31,7 +54,11 @@ class Database {
 			$config['port'] ?? null
 		);
 
-		return $obj;
+		if (self::$instance->connection->connect_errno) {
+			throw new DatabaseException(self::$instance->connection->connect_error);
+		}
+
+		return self::$instance;
 	}
 
 	/**
@@ -41,10 +68,13 @@ class Database {
 	 * @return Database 
 	 */
 	public static function fromConnection(\mysqli $connection): Database {
-		$obj = new self();
-		$obj->connection = $connection;
+		if (self::$instance === null) {
+			self::$instance = new self();
+		}
 		
-		return $obj;
+		self::$instance->connection = $connection;
+		
+		return self::$instance;
 	}
 
 	/**
