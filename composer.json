@@ -16,13 +16,19 @@
         "php": ">=7.4",
         "monolog/monolog": "^3.3"
     },
+    "scripts": {
+        "check-compatibility": "phpcs -p src --standard=PHPCompatibility --runtime-set testVersion 7.4-",
+        "test": "pest"
+    },
     "config": {
         "allow-plugins": {
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
         }
     },
     "require-dev": {
         "pestphp/pest": "^2.4",
-        "mockery/mockery": "^1.5"
+        "mockery/mockery": "^1.5",
+        "phpcompatibility/php-compatibility": "^10.0@dev"
     }
 }
