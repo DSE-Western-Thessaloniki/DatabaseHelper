@@ -14,7 +14,7 @@
     ],
     "require": {
         "php": ">=7.4",
-        "monolog/monolog": "^3.3"
+        "monolog/monolog": "^2.5"
     },
     "scripts": {
         "check-compatibility": "phpcs -p src --standard=PHPCompatibility --runtime-set testVersion 7.4-",
