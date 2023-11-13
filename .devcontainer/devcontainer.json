@@ -17,7 +17,6 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ikappas.composer",
 				"streetsidesoftware.code-spell-checker",
 				"mhutchie.git-graph",
 				"GitHub.vscode-pull-request-github",
