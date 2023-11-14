@@ -23,6 +23,8 @@ beforeEach(function() {
         "password" => "mariadb",
         "database" => "mariadb"
     ]);
+
+    $this->db->setLogger(new Logger('test'));
 });
 
 it('can create a new database object and connect to a specific database', function () {
@@ -37,16 +39,6 @@ it('can create a new database object and connect to a specific database', functi
         )
     );
     expect($db->connection()->connect_errno)->toBe(0);
-    expect($db->close())->toBe(true);
-    
-    $db = Database::fromConfig([
-        "hostname" => "127.0.0.1",
-        "username" => "mariadb",
-        "password" => "mariadb",
-        "database" => "mariadb"
-    ]);
-    expect($db->connection()->connect_errno)->toBe(0);
-    expect($db->close())->toBe(true);
 
     $db = Database::fromConnection(
         $this->db->connection()
@@ -121,7 +113,8 @@ it("logs errors to a logger of choice", function () {
 });
 
 it("throws an exception if we are not connected to a database", function () {
-    $db = new Database();
+    $db = Database::getInstance();
+    $db->close();
     expect(fn() => $db->fastQuery("SELECT 1"))
         ->toThrow(DatabaseException::class);
     expect(fn() => $db->query("SELECT 1 from a where id =?", [1]))
@@ -151,6 +144,7 @@ it("can prepare a query and execute it", function () {
     expect($result[0][0])->toBe(3);
     expect($result[0][1])->toBe("test3");
     expect($result)->toHaveCount(1);
+    $this->db->close_statement();
 
     $this->db->fastQuery("DROP TABLE a");
 });
