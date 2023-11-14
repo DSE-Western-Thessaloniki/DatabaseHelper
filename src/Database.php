@@ -316,6 +316,7 @@ class Database {
 		}
 
 		$result = $this->statement->close();
+		$this->statement = null;
 
 		return $result;
 	}
@@ -373,6 +374,9 @@ class Database {
 	 * @return bool true on success, false on failure.
 	 */
 	public function close(): bool {
-		return $this->connection->close();
+		$result = $this->connection->close();
+		$this->connection = null;
+
+		return $result;
 	}
 }
